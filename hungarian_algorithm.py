@@ -1,6 +1,6 @@
 from typing import List
 import math
-import random
+from copy import deepcopy, copy
 
 INF = math.inf
 
@@ -136,7 +136,7 @@ def cross_matrix(zero_matrix):
     return zero_matrix, covered_rows, covered_cols
 
 
-def change_matrix(reduced_matrix, covered_rows, covered_cols):
+def change_matrix(reduced_matrix, covered_rows, covered_cols, fi):
     matrix_row_size = len(reduced_matrix)
     matrix_col_size = len(reduced_matrix[0])
 
@@ -155,8 +155,11 @@ def change_matrix(reduced_matrix, covered_rows, covered_cols):
                 reduced_matrix[row_it][col_it] += minimal_value
             else:
                 continue
+    
+    if minimal_value != INF:
+        fi += minimal_value
 
-    return reduced_matrix
+    return reduced_matrix, fi
 
 
 def hungarian_algorithm(matrix):
@@ -174,18 +177,23 @@ def hungarian_algorithm(matrix):
 
     # Step 1
     reduced_row_matrix, fi = reduce_row(cloned_matrix)
+    reduced_row_copy_matrix = deepcopy(reduced_row_matrix)
 
     # Step 2
-    reduced_matrix, fi2 = reduce_column(reduced_row_matrix, fi)
+    reduced_matrix, fi2 = reduce_column(reduced_row_copy_matrix, fi)
+
+    # Total Cost
+    totalCost = fi2
 
     # Step 3
-    zero_matrix = find_zeros(reduced_matrix)
+    reduced_matrix_copy = deepcopy(reduced_matrix)
+    zero_matrix = find_zeros(reduced_matrix_copy)
 
     # Step 4
     new_zero_matrix, covered_rows, covered_cols = cross_matrix(zero_matrix)
 
     # Step 5
-    final_matrix = change_matrix(reduced_matrix, covered_rows, covered_cols)
+    final_matrix, totalCost = change_matrix(reduced_matrix_copy, covered_rows, covered_cols, totalCost)
 
     status = 'Completed'
 
@@ -195,7 +203,7 @@ def hungarian_algorithm(matrix):
     while len(covered_rows) + len(covered_cols) < len(matrix):
         zero_matrix = find_zeros(final_matrix)
         new_zero_matrix, covered_rows, covered_cols = cross_matrix(zero_matrix)
-        final_matrix = change_matrix(reduced_matrix, covered_rows, covered_cols)
+        final_matrix, totalCost = change_matrix(reduced_matrix_copy, covered_rows, covered_cols, totalCost)
         loop_counter += 1
 
         if loop_counter > 20:
@@ -209,7 +217,7 @@ def hungarian_algorithm(matrix):
             if new_zero_matrix[row_it][col_it] == 1:
                 result_matrix[row_it][col_it] = matrix[row_it][col_it]
 
-    return result_matrix, final_matrix, new_zero_matrix, covered_rows, covered_cols, status
+    return result_matrix, final_matrix, new_zero_matrix, covered_rows, covered_cols, status, totalCost, reduced_row_matrix, reduced_matrix
 
 
 def list2string_matrix(matrix):
@@ -223,15 +231,21 @@ def list2string_matrix(matrix):
 
 
 def print_assignment(matrix):
-    result, modified, zeros, rows, cols, status = hungarian_algorithm(matrix)
+    result, modified, zeros, rows, cols, status, totalCost, reduced_row_matrix, reduced_matrix = hungarian_algorithm(matrix)
     print('Oryginalna macierz: ')
     print(list2string_matrix(matrix))
-    print("Wyznaczony przydział: ")
-    print(list2string_matrix(result))
+    print("Macierz zredukowana wierszowo: ")
+    print(list2string_matrix(reduced_row_matrix))
+    print("Macierz zredukowana wierszowo oraz kolumnowo: ")
+    print(list2string_matrix(reduced_matrix))
     print("Macierz po przekształceniach: ")
     print(list2string_matrix(modified))
+    print("Wyznaczony przydział: ")
+    print(list2string_matrix(result))
     print("Macierz zer (1 - zero niezależne, 2 - zero zależne, 3 - zero prim)")
     print(list2string_matrix(zeros))
+    print("Koszt: ")
+    print(totalCost)
     print('Wykreślone wiersze: ')
     print(rows)
     print('Wykreślone kolumny: ')
@@ -240,27 +254,34 @@ def print_assignment(matrix):
     print(status + '\n')
 
 
-Matrix = [[5, 2, 3, 2, 7],
-          [6, 8, 4, 2, 5],
-          [6, 4, 3, 7, 2],
-          [6, 9, 0, 4, 0],
-          [4, 1, 2, 4, 0]]
-print_assignment(Matrix)
+# Matrix = [[5, 2, 3, 2, 7],
+#           [6, 8, 4, 2, 5],
+#           [6, 4, 3, 7, 2],
+#           [6, 9, 0, 4, 0],
+#           [4, 1, 2, 4, 0]]
+# print_assignment(Matrix)
 
 # Znalazłem taką macierz na stronie https://www.hungarianalgorithm.com/examplehungarianalgorithm.php
 # i rozwiązanie programu zgadza się z rozwiązaniem na stronie
-Matrix2 = [[82, 83, 69, 92], [77, 37, 49, 92], [11, 69, 5, 86], [8, 9, 98, 23]]
-print_assignment(Matrix2)
+# Matrix2 = [[82, 83, 69, 92], [77, 37, 49, 92], [11, 69, 5, 86], [8, 9, 98, 23]]
+# print_assignment(Matrix2)
 
-Matrix3 = [[random.randint(1, 25) for j in range(5)] for i in range(5)]
-print_assignment(Matrix3)
+matrix_last = [[91, 83, 22, 82, 1, 44], [68, 6, 94, 95, 88, 94], [7, 29, 4, 62, 20, 36],
+               [15, 90, 52, 4, 39, 89], [42, 88, 80, 61, 3, 98], [42, 82, 9, 47, 39, 93]]
+print_assignment(matrix_last)
+
+# cleaningMatrix = [[8, 4, 7], [5, 2, 3], [9, 4, 8]]
+# print_assignment(cleaningMatrix)
+
+# Matrix3 = [[random.randint(1, 25) for j in range(5)] for i in range(5)]
+# print_assignment(Matrix3)
 
 # Macierz psujaca algorytm (już naprawiłem i działa)
-Matrix4 = [[0, 4, 9, 10, 0], [8, 7, 13, 0, 0], [19, 14, 0, 0, 7], [15, 0, 6, 2, 4], [9, 14, 11, 0, 9]]
-print_assignment(Matrix4)
+# Matrix4 = [[0, 4, 9, 10, 0], [8, 7, 13, 0, 0], [19, 14, 0, 0, 7], [15, 0, 6, 2, 4], [9, 14, 11, 0, 9]]
+# print_assignment(Matrix4)
 
-Matrix5 = [[random.randint(1, 9) for j in range(10)] for i in range(10)]
-print_assignment(Matrix5)
+# Matrix5 = [[random.randint(1, 9) for j in range(10)] for i in range(10)]
+# print_assignment(Matrix5)
 
 # Matrix6 = [[7, 5, 2, 7, 7, 1, 8, 7, 9, 8], [1, 8, 3, 8, 1, 9, 9, 4, 4, 8], [5, 9, 8, 6, 5, 6, 1, 8, 5, 3], [1, 6, 3, 2, 8, 5, 2, 9, 8, 9], [2, 1, 9, 2, 8, 6, 1, 7, 5, 8], [6, 5, 8, 6, 1, 3, 7, 6, 7, 8], [4, 9, 9, 7, 6, 1, 3, 7, 1, 3], [8, 7, 9, 9, 1, 9, 7, 1, 7, 9], [5, 1, 2, 8, 8, 9, 8, 5, 9, 7], [5, 1, 3, 5, 6, 3, 7, 8, 8, 2]]
 # print_assignment(Matrix6)
